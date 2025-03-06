@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, FlatList, Alert, TextInput } from 'react-native';
+import { View, FlatList, Alert, TextInput, Text } from 'react-native';
 import Button from '../components/Button';
 import NoteItem from '../components/NoteItem';
 import { commonStyles } from '../styles/commonStyles';
@@ -154,21 +154,35 @@ const HomeScreen = ({ navigation }) => {
           title="Delete All"
           icon="delete"
           onPress={deleteAllNotes}
-          style={{ backgroundColor: '#dc3545' }} // Red color for danger
+          style={{ backgroundColor: '#dc3545' }}
         />
       </View>
-      <FlatList
-        style={{ marginTop: 20 }}
-        data={filteredNotes}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <NoteItem
-            item={item}
-            onPress={() => navigation.navigate("EditNote", { note: item, notes, setNotes })}
-            onDelete={() => deleteNote(item.id)}
-          />
-        )}
-      />
+      {notes.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 16, color: '#6c757d' }}>
+            No notes yet. Click "Add Note" to create your first note!
+          </Text>
+        </View>
+      ) : filteredNotes.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 16, color: '#6c757d' }}>
+            No results found for "{searchTerm}"
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          style={{ marginTop: 20 }}
+          data={filteredNotes}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <NoteItem
+              item={item}
+              onPress={() => navigation.navigate("EditNote", { note: item, notes, setNotes })}
+              onDelete={() => deleteNote(item.id)}
+            />
+          )}
+        />
+      )}
     </View>
   );
 };
