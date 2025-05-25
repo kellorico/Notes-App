@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { commonStyles } from '../styles/commonStyles';
+import { View, TextInput, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { StorageService } from '../services/storage';
 
 const CATEGORIES = {
   WORK: { name: 'Work', color: '#FF6B6B' },
@@ -14,33 +16,78 @@ const AddNoteScreen = ({ navigation }) => {
   const [content, setContent] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('PERSONAL');
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    console.log('Attempting to save note:', { title, content, category: selectedCategory });
+    
     if (title.trim() === '' || content.trim() === '') {
-      alert('Please fill in both title and content');
+      Alert.alert('Error', 'Title and content cannot be empty');
       return;
     }
-    navigation.navigate('Notes', {
-      type: 'ADD_NOTE',
-      note: {
-        title,
-        content,
-        category: selectedCategory
-      }
-    });
+
+    try {
+      const newNote = {
+        id: Date.now().toString(),
+        title: title.trim(),
+        content: content.trim(),
+        category: selectedCategory,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isPinned: false,
+        isArchived: false,
+        tags: []
+      };
+
+      console.log('Created new note object:', newNote);
+      
+      // Navigate back to Notes screen with the new note
+      navigation.navigate('Notes', {
+        type: 'ADD_NOTE',
+        note: newNote
+      });
+    } catch (error) {
+      console.error('Error in handleSave:', error);
+      Alert.alert('Error', 'Failed to save note');
+    }
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={styles.backButton}
+        >
+          <Icon name="arrow-back" size={24} color="#666" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Add Note</Text>
+        <TouchableOpacity 
+          onPress={handleSave} 
+          style={styles.saveButton}
+        >
+          <Icon name="check" size={24} color="#6200ea" />
+        </TouchableOpacity>
+      </View>
+
       <TextInput
         style={styles.titleInput}
         placeholder="Title"
         value={title}
         onChangeText={setTitle}
-        placeholderTextColor="#666"
+        placeholderTextColor="#999"
+      />
+
+      <TextInput
+        style={styles.contentInput}
+        placeholder="Write your note here..."
+        value={content}
+        onChangeText={setContent}
+        multiline
+        textAlignVertical="top"
+        placeholderTextColor="#999"
       />
 
       <View style={styles.categoryContainer}>
-        <Text style={styles.categoryLabel}>Category:</Text>
+        <Text style={styles.categoryTitle}>Category:</Text>
         <View style={styles.categoryButtons}>
           {Object.entries(CATEGORIES).map(([key, { name, color }]) => (
             <TouchableOpacity
@@ -51,118 +98,82 @@ const AddNoteScreen = ({ navigation }) => {
               ]}
               onPress={() => setSelectedCategory(key)}
             >
-              <Text
-                style={[
-                  styles.categoryButtonText,
-                  selectedCategory === key && { color: '#fff' }
-                ]}
-              >
+              <Text style={[
+                styles.categoryText,
+                selectedCategory === key && styles.selectedCategoryText
+              ]}>
                 {name}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
-
-      <TextInput
-        style={styles.contentInput}
-        placeholder="Write your note here..."
-        value={content}
-        onChangeText={setContent}
-        multiline
-        textAlignVertical="top"
-        placeholderTextColor="#666"
-      />
-
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.button, styles.cancelButton]}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.buttonText}>Cancel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, styles.saveButton]}
-          onPress={handleSave}
-        >
-          <Text style={[styles.buttonText, styles.saveButtonText]}>Save</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  saveButton: {
+    padding: 8,
   },
   titleInput: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  categoryContainer: {
-    marginBottom: 20,
-  },
-  categoryLabel: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: '#666',
-  },
-  categoryButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  categoryButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    marginRight: 10,
-    marginBottom: 10,
-  },
-  categoryButtonText: {
-    color: '#666',
-    fontSize: 14,
+    padding: 16,
+    color: '#333',
   },
   contentInput: {
     flex: 1,
     fontSize: 16,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    marginBottom: 20,
+    padding: 16,
+    color: '#333',
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
+  categoryContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
   },
-  button: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#f0f0f0',
-  },
-  saveButton: {
-    backgroundColor: '#4ECDC4',
-  },
-  buttonText: {
+  categoryTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  categoryButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  categoryText: {
     color: '#666',
   },
-  saveButtonText: {
+  selectedCategoryText: {
     color: '#fff',
   },
 });

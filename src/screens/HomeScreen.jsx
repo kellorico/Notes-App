@@ -4,6 +4,7 @@ import Button from '../components/Button';
 import NoteItem from '../components/NoteItem';
 import { commonStyles } from '../styles/commonStyles';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { StorageService } from '../services/storage';
 
 const CATEGORIES = {
   WORK: { name: 'Work', color: '#FF6B6B' },
@@ -101,6 +102,8 @@ class NoteSharing {
     }
 }
 
+const STORAGE_KEY = '@notes_app_notes';
+
 const HomeScreen = ({ navigation, route }) => {
   const [notes, setNotes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -108,14 +111,43 @@ const HomeScreen = ({ navigation, route }) => {
   const [sortBy, setSortBy] = useState('date');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [showArchived, setShowArchived] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const addNote = useCallback((title, content, category = 'PERSONAL') => {
-    if (title.trim() === "" || content.trim() === "") {
-      Alert.alert("Error", "Title and content cannot be empty!");
-      return;
+  // Load notes from storage on initial mount
+  useEffect(() => {
+    loadNotes();
+  }, []);
+
+  const loadNotes = async () => {
+    try {
+      setIsLoading(true);
+      const loadedNotes = await StorageService.loadNotes();
+      setNotes(loadedNotes);
+    } catch (error) {
+      console.error('Error loading notes:', error);
+      Alert.alert('Error', 'Failed to load notes');
+    } finally {
+      setIsLoading(false);
     }
-    const newNote = new Note(title, content, category);
-    setNotes(prevNotes => [newNote, ...prevNotes]);
+  };
+
+  const addNote = useCallback(async (note) => {
+    try {
+      console.log('Adding new note in HomeScreen:', note);
+      if (!note.title || !note.content) {
+        console.error('Invalid note data:', note);
+        return;
+      }
+
+      const newNote = new Note(note.title, note.content, note.category);
+      console.log('Created Note instance:', newNote);
+
+      const updatedNotes = await StorageService.addNote(newNote);
+      setNotes(updatedNotes);
+    } catch (error) {
+      console.error('Error adding note:', error);
+      Alert.alert('Error', 'Failed to add note');
+    }
   }, []);
 
   const deleteNote = useCallback((id) => {
@@ -129,7 +161,15 @@ const HomeScreen = ({ navigation, route }) => {
         },
         {
           text: "Delete",
-          onPress: () => setNotes(prevNotes => prevNotes.filter((note) => note.id !== id)),
+          onPress: async () => {
+            try {
+              const updatedNotes = await StorageService.deleteNote(id);
+              setNotes(updatedNotes);
+            } catch (error) {
+              console.error('Error deleting note:', error);
+              Alert.alert('Error', 'Failed to delete note');
+            }
+          },
           style: "destructive",
         }
       ],
@@ -139,7 +179,7 @@ const HomeScreen = ({ navigation, route }) => {
     );
   }, []);
 
-  const deleteAllNotes = useCallback(() => {
+  const deleteAllNotes = useCallback(async () => {
     if (notes.length === 0) {
       Alert.alert("No Notes", "There are no notes to delete.");
       return;
@@ -155,7 +195,15 @@ const HomeScreen = ({ navigation, route }) => {
         },
         {
           text: "Delete All",
-          onPress: () => setNotes([]),
+          onPress: async () => {
+            try {
+              const updatedNotes = await StorageService.deleteAllNotes();
+              setNotes(updatedNotes);
+            } catch (error) {
+              console.error('Error deleting all notes:', error);
+              Alert.alert('Error', 'Failed to delete all notes');
+            }
+          },
           style: "destructive"
         }
       ],
@@ -165,33 +213,37 @@ const HomeScreen = ({ navigation, route }) => {
     );
   }, [notes.length]);
 
-  const toggleNotePin = useCallback((id) => {
-    setNotes(prevNotes => prevNotes.map(note => 
-      note.id === id ? { ...note, isPinned: !note.isPinned } : note
-    ));
-  }, []);
-
-  const toggleNoteArchive = useCallback((id) => {
-    setNotes(prevNotes => prevNotes.map(note => 
-      note.id === id ? { ...note, isArchived: !note.isArchived } : note
-    ));
-  }, []);
-
-  const changeNoteCategory = useCallback((id, category) => {
-    setNotes(prevNotes => prevNotes.map(note => 
-      note.id === id ? { ...note, category } : note
-    ));
-  }, []);
-
-  const shareNote = useCallback(async (note) => {
+  const toggleNotePin = useCallback(async (id) => {
     try {
-      Alert.alert('Share Note', 'Sharing functionality coming soon!');
+      const updatedNotes = await StorageService.toggleNotePin(id);
+      setNotes(updatedNotes);
     } catch (error) {
-      Alert.alert('Error', 'Failed to share note');
+      console.error('Error toggling note pin:', error);
+      Alert.alert('Error', 'Failed to toggle note pin');
     }
   }, []);
 
-  const restoreAllArchived = useCallback(() => {
+  const toggleNoteArchive = useCallback(async (id) => {
+    try {
+      const updatedNotes = await StorageService.toggleNoteArchive(id);
+      setNotes(updatedNotes);
+    } catch (error) {
+      console.error('Error toggling note archive:', error);
+      Alert.alert('Error', 'Failed to toggle note archive');
+    }
+  }, []);
+
+  const changeNoteCategory = useCallback(async (id, category) => {
+    try {
+      const updatedNotes = await StorageService.updateNoteCategory(id, category);
+      setNotes(updatedNotes);
+    } catch (error) {
+      console.error('Error updating note category:', error);
+      Alert.alert('Error', 'Failed to update note category');
+    }
+  }, []);
+
+  const restoreAllArchived = useCallback(async () => {
     if (notes.filter(note => note.isArchived).length === 0) {
       Alert.alert("No Archived Notes", "There are no archived notes to restore.");
       return;
@@ -207,15 +259,21 @@ const HomeScreen = ({ navigation, route }) => {
         },
         {
           text: "Restore All",
-          onPress: () => {
-            setNotes(prevNotes => prevNotes.map(note => ({ ...note, isArchived: false })));
+          onPress: async () => {
+            try {
+              const updatedNotes = await StorageService.restoreAllArchived();
+              setNotes(updatedNotes);
+            } catch (error) {
+              console.error('Error restoring archived notes:', error);
+              Alert.alert('Error', 'Failed to restore archived notes');
+            }
           }
         }
       ]
     );
   }, [notes]);
 
-  const deleteAllArchived = useCallback(() => {
+  const deleteAllArchived = useCallback(async () => {
     const archivedNotes = notes.filter(note => note.isArchived);
     if (archivedNotes.length === 0) {
       Alert.alert("No Archived Notes", "There are no archived notes to delete.");
@@ -233,58 +291,46 @@ const HomeScreen = ({ navigation, route }) => {
         {
           text: "Delete All",
           style: "destructive",
-          onPress: () => {
-            setNotes(prevNotes => prevNotes.filter(note => !note.isArchived));
+          onPress: async () => {
+            try {
+              const updatedNotes = await StorageService.deleteAllArchived();
+              setNotes(updatedNotes);
+            } catch (error) {
+              console.error('Error deleting archived notes:', error);
+              Alert.alert('Error', 'Failed to delete archived notes');
+            }
           }
         }
       ]
     );
   }, [notes]);
 
-  const filteredNotes = notes
-    .filter(note => 
-      (note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (selectedCategory === 'ALL' || note.category === selectedCategory) &&
-      note.isArchived === showArchived
-    );
-
-  const sortedNotes = getSortedNotes(filteredNotes, sortBy);
-
+  // Update the navigation focus effect
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener('focus', async () => {
       console.log('Navigation focus event triggered');
       console.log('Current route params:', route.params);
       
-      // Check if we have params from navigation
       if (route.params) {
         const { type, note, noteId } = route.params;
         console.log('Processing navigation params:', { type, note, noteId });
         
-        if (type === 'ADD_NOTE') {
-          console.log('Adding new note:', note);
-          const newNote = new Note(note.title, note.content, note.category);
-          setNotes(prevNotes => {
-            const updatedNotes = [newNote, ...prevNotes];
-            console.log('Updated notes after adding:', updatedNotes);
-            return updatedNotes;
-          });
-        } else if (type === 'UPDATE_NOTE') {
-          console.log('Updating note:', note);
-          setNotes(prevNotes => {
-            const updatedNotes = prevNotes.map(n => 
-              n.id === note.id ? note : n
-            );
-            console.log('Updated notes after updating:', updatedNotes);
-            return updatedNotes;
-          });
-        } else if (type === 'DELETE_NOTE') {
-          console.log('Deleting note with ID:', noteId);
-          setNotes(prevNotes => {
-            const updatedNotes = prevNotes.filter(n => n.id !== noteId);
-            console.log('Updated notes after deleting:', updatedNotes);
-            return updatedNotes;
-          });
+        try {
+          if (type === 'ADD_NOTE' && note) {
+            console.log('Adding new note from navigation:', note);
+            await addNote(note);
+          } else if (type === 'UPDATE_NOTE' && note) {
+            console.log('Updating note:', note);
+            const updatedNotes = await StorageService.updateNote(note);
+            setNotes(updatedNotes);
+          } else if (type === 'DELETE_NOTE' && noteId) {
+            console.log('Deleting note with ID:', noteId);
+            const updatedNotes = await StorageService.deleteNote(noteId);
+            setNotes(updatedNotes);
+          }
+        } catch (error) {
+          console.error('Error processing navigation params:', error);
+          Alert.alert('Error', 'Failed to process note changes');
         }
         
         // Clear the params after handling them
@@ -293,15 +339,27 @@ const HomeScreen = ({ navigation, route }) => {
     });
 
     return unsubscribe;
-  }, [navigation, route.params]);
+  }, [navigation, route.params, addNote]);
 
-  // Add a debug effect to log notes changes
+  // Debug effect to log notes changes
   useEffect(() => {
     console.log('Notes state updated:', notes);
   }, [notes]);
 
+  const filteredNotes = notes
+    .filter(note => {
+      const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          note.content.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'ALL' || note.category === selectedCategory;
+      const matchesArchive = note.isArchived === showArchived;
+      
+      return matchesSearch && matchesCategory && matchesArchive;
+    });
+
+  const sortedNotes = getSortedNotes(filteredNotes, sortBy);
+
   const handleAddNote = useCallback((title, content, category) => {
-    addNote(title, content, category);
+    addNote(new Note(title, content, category));
     navigation.goBack();
   }, [addNote, navigation]);
 
@@ -311,6 +369,11 @@ const HomeScreen = ({ navigation, route }) => {
     ));
     navigation.goBack();
   }, [navigation]);
+
+  const handleCategorySelect = useCallback((category) => {
+    console.log('Selecting category:', category);
+    setSelectedCategory(category);
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, isDarkMode && styles.darkContainer]}>
@@ -365,7 +428,7 @@ const HomeScreen = ({ navigation, route }) => {
               selectedCategory === 'ALL' && styles.selectedCategory,
               isDarkMode && styles.darkCategoryButton
             ]}
-            onPress={() => setSelectedCategory('ALL')}
+            onPress={() => handleCategorySelect('ALL')}
           >
             <Text style={[
               styles.categoryText,
@@ -381,7 +444,7 @@ const HomeScreen = ({ navigation, route }) => {
                 selectedCategory === key && { backgroundColor: color },
                 isDarkMode && styles.darkCategoryButton
               ]}
-              onPress={() => setSelectedCategory(key)}
+              onPress={() => handleCategorySelect(key)}
             >
               <Text style={[
                 styles.categoryText,
@@ -442,43 +505,37 @@ const HomeScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {notes.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Icon name="note-add" size={64} color={isDarkMode ? '#666' : '#999'} />
-          <Text style={[styles.emptyText, isDarkMode && styles.darkEmptyText]}>
-            No notes yet. Click "Add Note" to create your first note!
-          </Text>
-        </View>
-      ) : filteredNotes.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Icon name="search-off" size={64} color={isDarkMode ? '#666' : '#999'} />
-          <Text style={[styles.emptyText, isDarkMode && styles.darkEmptyText]}>
-            {showArchived 
-              ? "No archived notes found"
-              : `No results found for "${searchTerm}"`}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          style={styles.notesList}
-          data={sortedNotes}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <NoteItem
-              item={item}
-              onPress={() => navigation.navigate("EditNote", { note: item })}
-              onDelete={() => deleteNote(item.id)}
-              onPin={() => toggleNotePin(item.id)}
-              onArchive={() => toggleNoteArchive(item.id)}
-              onShare={() => shareNote(item)}
-              onCategoryChange={(category) => changeNoteCategory(item.id, category)}
-              isDarkMode={isDarkMode}
-              categories={CATEGORIES}
-            />
-          )}
-          contentContainerStyle={styles.notesListContent}
-        />
-      )}
+      <FlatList
+        style={styles.notesList}
+        data={sortedNotes}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <NoteItem
+            item={item}
+            onPress={() => navigation.navigate("EditNote", { note: item })}
+            onDelete={() => deleteNote(item.id)}
+            onPin={() => toggleNotePin(item.id)}
+            onArchive={() => toggleNoteArchive(item.id)}
+            onShare={() => shareNote(item)}
+            onCategoryChange={(category) => changeNoteCategory(item.id, category)}
+            isDarkMode={isDarkMode}
+            categories={CATEGORIES}
+          />
+        )}
+        contentContainerStyle={styles.notesListContent}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Icon name="note-add" size={64} color={isDarkMode ? '#666' : '#999'} />
+            <Text style={[styles.emptyText, isDarkMode && styles.darkEmptyText]}>
+              {showArchived 
+                ? "No archived notes found"
+                : searchTerm 
+                  ? `No results found for "${searchTerm}"`
+                  : "No notes yet. Click 'Add Note' to create your first note!"}
+            </Text>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 };

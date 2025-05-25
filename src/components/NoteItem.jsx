@@ -24,11 +24,14 @@ const NoteItem = ({
       ]}
       onPress={onPress}
     >
+      {item.isPinned && (
+        <View style={styles.pinContainer}>
+          <Icon name="push-pin" size={16} color="#6200ea" />
+          <Text style={styles.pinText}>Pinned</Text>
+        </View>
+      )}
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          {item.isPinned && (
-            <Icon name="push-pin" size={16} color="#FFD700" style={styles.pinIcon} />
-          )}
           <Text 
             style={[
               styles.title,
@@ -67,7 +70,7 @@ const NoteItem = ({
         <View style={styles.actions}>
           <TouchableOpacity onPress={onPin} style={styles.actionButton}>
             <Icon 
-              name={item.isPinned ? "push-pin" : "push-pin-outline"} 
+              name={item.isPinned ? "push-pin" : "push-pin"} 
               size={20} 
               color={item.isPinned ? "#FFD700" : "#666"} 
             />
@@ -117,9 +120,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  pinIcon: {
-    marginRight: 5,
-  },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -162,6 +162,21 @@ const styles = StyleSheet.create({
   actionButton: {
     marginLeft: 10,
     padding: 4,
+  },
+  pinContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#6200ea',
+    padding: 4,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pinText: {
+    color: '#fff',
+    fontSize: 12,
+    marginLeft: 4,
   },
 });
 

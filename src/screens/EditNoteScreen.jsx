@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { StorageService } from '../services/storage';
 
 const CATEGORIES = {
   WORK: { name: 'Work', color: '#FF6B6B' },
@@ -27,44 +30,56 @@ const EditNoteScreen = ({ route, navigation }) => {
     });
   }, [navigation]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    console.log('Attempting to save edited note:', { title, content, category: selectedCategory });
+    
     if (title.trim() === '' || content.trim() === '') {
-      Alert.alert('Error', 'Please fill in both title and content');
+      Alert.alert('Error', 'Title and content cannot be empty');
       return;
     }
 
-    navigation.navigate('Notes', {
-      type: 'UPDATE_NOTE',
-      note: {
+    try {
+      const updatedNote = {
         ...note,
-        title,
-        content,
+        title: title.trim(),
+        content: content.trim(),
         category: selectedCategory,
-        updatedAt: new Date(),
-      }
-    });
+        updatedAt: new Date()
+      };
+
+      console.log('Created updated note object:', updatedNote);
+      
+      // Navigate back to Notes screen with the updated note
+      navigation.navigate('Notes', {
+        type: 'UPDATE_NOTE',
+        note: updatedNote
+      });
+    } catch (error) {
+      console.error('Error in handleSave:', error);
+      Alert.alert('Error', 'Failed to save note');
+    }
   };
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Note',
-      'Are you sure you want to delete this note?',
+      "Delete Note",
+      "Are you sure you want to delete this note?",
       [
         {
-          text: 'Cancel',
-          style: 'cancel',
+          text: "Cancel",
+          style: "cancel"
         },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: () => {
             navigation.navigate('Notes', {
               type: 'DELETE_NOTE',
               noteId: note.id
             });
-          },
-        },
-      ],
+          }
+        }
+      ]
     );
   };
 
